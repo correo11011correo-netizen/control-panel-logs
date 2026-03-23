@@ -35,11 +35,17 @@ function doPost(e) {
     // Guardar el registro en la hoja de Google Sheets
     sheet.appendRow([timestamp, deviceId, event, message, os, model]);
     
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: 'success', 
+      serverTime: new Date().toISOString(),
+      receivedEvent: event
+    })).setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      status: 'error', 
+      message: error.toString(),
+      serverTime: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -51,8 +57,12 @@ function doGet(e) {
     
     // Si solo hay cabeceras o la hoja está vacía
     if (data.length <= 1) {
-      return ContentService.createTextOutput(JSON.stringify({ logs: [] }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ 
+        logs: [], 
+        status: 'OK', 
+        serverTime: new Date().toISOString(),
+        rowsProcessed: 0
+      })).setMimeType(ContentService.MimeType.JSON);
     }
     
     // Convertir matriz de Sheets a Array de JSON (saltando cabeceras [1])
@@ -65,10 +75,16 @@ function doGet(e) {
       model: row[5]
     }));
     
-    return ContentService.createTextOutput(JSON.stringify({ logs: logs }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      logs: logs,
+      status: 'OK',
+      serverTime: new Date().toISOString(),
+      rowsProcessed: logs.length
+    })).setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ 
+      error: error.toString(),
+      serverTime: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
