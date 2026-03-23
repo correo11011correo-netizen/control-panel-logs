@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Control - Dispositivos y Logs</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; }
+    h1 { color: #2c3e50; text-align: center; }
+    .config-panel { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
+    .config-panel input { width: 60%; min-width: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .config-panel button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .config-panel button:hover { background: #2980b9; }
+    .container { display: flex; gap: 20px; flex-wrap: wrap; }
+    .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .devices-list { flex: 1; min-width: 250px; }
+    .logs-list { flex: 3; min-width: 500px; height: 70vh; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background-color: #34495e; color: white; position: sticky; top: 0; z-index: 10; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 10px; border-bottom: 1px solid #eee; font-weight: bold; color: #2980b9;}
+    .event-INICIO { color: #27ae60; font-weight: bold; }
+    .event-CIERRE { color: #f39c12; font-weight: bold; }
+    .event-ERROR { color: #c0392b; font-weight: bold; }
+    .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+    .status-disconnected { background-color: #e74c3c; color: white; }
+    .status-connected { background-color: #2ecc71; color: white; }
+  </style>
+</head>
+<body>
+  <h1>🛰️ Panel de Control - App Logs (En Vivo)</h1>
+  
+  <div class="config-panel">
+    <label for="scriptUrl"><strong>URL Apps Script:</strong></label>
+    <input type="text" id="scriptUrl" placeholder="Pega aquí la URL de tu Web App de Google Apps Script...">
+    <button onclick="saveUrl()">Conectar</button>
+  </div>
+
+  <div class="container">
+    <div class="card devices-list">
+      <h2>📱 Dispositivos Instalados</h2>
+      <div id="connectionStatus" class="status-badge status-disconnected">Desconectado</div>
+      <ul id="deviceList">Esperando conexión...</ul>
+    </div>
+    <div class="card logs-list">
+      <h2>📋 Registro de Eventos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha y Hora</th>
+            <th>ID Dispositivo</th>
+            <th>Modelo / OS</th>
+            <th>Evento</th>
+            <th>Mensaje</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody">
+          <tr><td colspan="5" style="text-align: center;">Sin datos para mostrar</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let fetchInterval;
+
+    // Recuperar URL guardada al cargar
+    window.onload = () => {
+      const savedUrl = localStorage.getItem('appsScriptUrl');
+      if (savedUrl) {
+        document.getElementById('scriptUrl').value = savedUrl;
+        startFetching(savedUrl);
+      }
+    };
+
+    function saveUrl() {
+      const url = document.getElementById('scriptUrl').value.trim();
+      if (url) {
+        localStorage.setItem('appsScriptUrl', url);
+        startFetching(url);
+      } else {
+        alert("Por favor ingresa una URL válida.");
+      }
+    }
+
+    function startFetching(url) {
+      if (fetchInterval) clearInterval(fetchInterval);
+      document.getElementById('connectionStatus').textContent = 'Conectando...';
+      document.getElementById('connectionStatus').className = 'status-badge status-disconnected';
+      
+      fetchLogs(url);
+      fetchInterval = setInterval(() => fetchLogs(url), 5000); // Actualiza cada 5 seg
+    }
+
+    async function fetchLogs(url) {
+      try {
+        const response = await fetch(url, { redirect: 'follow' });
+        const data = await response.json();
+        
+        document.getElementById('connectionStatus').textContent = 'Conectado (En Vivo)';
+        document.getElementById('connectionStatus').className = 'status-badge status-connected';
+        
+        updateUI(data.logs || []);
+      } catch (error) {
+        console.error("Error obteniendo logs:", error);
+        document.getElementById('connectionStatus').textContent = 'Error de Conexión';
+        document.getElementById('connectionStatus').className = 'status-badge status-disconnected';
+      }
+    }
+
+    function updateUI(logs) {
+      const tbody = document.getElementById('logsTableBody');
+      const deviceList = document.getElementById('deviceList');
+      
+      if (!Array.isArray(logs) || logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay eventos registrados aún</td></tr>';
+        deviceList.innerHTML = '<li>Sin dispositivos</li>';
+        return;
+      }
+      
+      tbody.innerHTML = '';
+      const devices = new Set();
+      
+      // Mostrar los más recientes primero
+      logs.reverse().forEach(log => {
+        if(!log.deviceId) return;
+        devices.add(log.deviceId);
+        
+        const tr = document.createElement('tr');
+        const eventType = String(log.event).toUpperCase();
+        
+        // Identificar tipo de evento para aplicar CSS
+        let eventClass = '';
+        if (eventType.includes('INICIO') || eventType.includes('START')) eventClass = 'event-INICIO';
+        if (eventType.includes('CIERRE') || eventType.includes('CLOSE')) eventClass = 'event-CIERRE';
+        if (eventType.includes('ERROR') || eventType.includes('CRASH')) eventClass = 'event-ERROR';
+
+        const date = new Date(log.timestamp).toLocaleString();
+        
+        tr.innerHTML = `
+          <td>${date}</td>
+          <td>${log.deviceId}</td>
+          <td>${log.model || '-'} / ${log.os || '-'}</td>
+          <td class="${eventClass}">${eventType}</td>
+          <td>${log.message || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Actualizar dispositivos únicos
+      deviceList.innerHTML = '';
+      devices.forEach(device => {
+        const li = document.createElement('li');
+        li.textContent = "🆔 " + device;
+        deviceList.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
