@@ -39,14 +39,14 @@
   ],
   "screenshots": [
     {
-      "src": "https://raw.githubusercontent.com/correo11011correo-netizen/control-panel-logs/main/icon-512.png",
-      "sizes": "512x512",
+      "src": "https://placehold.co/1280x720/34495e/FFFFFF.png?text=Dashboard+Desktop",
+      "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide"
     },
     {
-      "src": "https://raw.githubusercontent.com/correo11011correo-netizen/control-panel-logs/main/icon-512.png",
-      "sizes": "512x512",
+      "src": "https://placehold.co/720x1280/34495e/FFFFFF.png?text=Dashboard+Mobile",
+      "sizes": "720x1280",
       "type": "image/png",
       "form_factor": "narrow"
     }
