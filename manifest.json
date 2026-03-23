@@ -6,12 +6,14 @@
   "lang": "es",
   "dir": "ltr",
   "start_url": "./index.html",
+  "scope": "/control-panel-logs/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
+  "display_override": ["tabbed", "window-controls-overlay", "standalone"],
   "orientation": "portrait",
   "background_color": "#f4f7f6",
   "theme_color": "#34495e",
   "categories": ["productivity", "utilities"],
+  "iarc_rating_id": "e58c174a-81d2-5c3c-32cc-34b8de4a52e9",
   "icons": [
     {
       "src": "./icon-192.png",
@@ -37,16 +39,46 @@
   ],
   "screenshots": [
     {
-      "src": "https://via.placeholder.com/1280x720.png?text=Monitor+Dashboard+Desktop",
-      "sizes": "1280x720",
+      "src": "https://raw.githubusercontent.com/correo11011correo-netizen/control-panel-logs/main/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide"
     },
     {
-      "src": "https://via.placeholder.com/720x1280.png?text=Monitor+Dashboard+Mobile",
-      "sizes": "720x1280",
+      "src": "https://raw.githubusercontent.com/correo11011correo-netizen/control-panel-logs/main/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Enviar Ping",
+      "short_name": "Ping",
+      "description": "Enviar un ping de prueba al servidor",
+      "url": "./index.html?action=ping",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.netizen.monitorinventario",
+      "id": "com.netizen.monitorinventario"
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "./index.html?action=new_note"
+  },
+  "widgets": [
+    {
+      "name": "Monitor Widget",
+      "description": "Muestra el estado de conexión del monitor",
+      "tag": "monitor-status",
+      "template_url": "./index.html?widget=true",
+      "ms_ac_template": "./index.html?widget=true",
+      "auth_base_url": "./index.html",
+      "backgrounds": ["#f4f7f6"]
     }
   ],
   "share_target": {
