@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.netizen.monitorinventario",
+    "sha256_cert_fingerprints": ["B0:48:EE:2D:86:EC:25:72:04:87:22:57:F4:E2:A3:6E:F3:24:87:C8:A8:0A:B1:D1:B4:88:A8:E2:54:C4:9F:29"]
+  }
+}]
