@@ -7,14 +7,11 @@
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; }
     h1 { color: #2c3e50; text-align: center; }
-    .config-panel { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; }
-    .config-panel input { width: 60%; min-width: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-    .config-panel button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    .config-panel button:hover { background: #2980b9; }
     .container { display: flex; gap: 20px; flex-wrap: wrap; }
     .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .devices-list { flex: 1; min-width: 250px; }
-    .logs-list { flex: 3; min-width: 500px; height: 70vh; overflow-y: auto; }
+    .logs-list { flex: 3; min-width: 500px; height: 50vh; overflow-y: auto; }
+    .system-logs { flex: 100%; min-width: 100%; height: 25vh; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
     th { background-color: #34495e; color: white; position: sticky; top: 0; z-index: 10; }
@@ -26,6 +23,11 @@
     .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
     .status-disconnected { background-color: #e74c3c; color: white; }
     .status-connected { background-color: #2ecc71; color: white; }
+    #sysLogContainer { background:#222; color:#0f0; padding:10px; height:80%; overflow-y:auto; font-family:monospace; font-size:13px; border-radius:5px; margin-top: 10px;}
+    .sys-info { color: #0f0; }
+    .sys-warn { color: #ffbb33; }
+    .sys-error { color: #ff4444; }
+    .sys-rx { color: #33b5e5; }
   </style>
 </head>
 <body>
@@ -54,6 +56,13 @@
         </tbody>
       </table>
     </div>
+    
+    <div class="card system-logs">
+      <h2>⚙️ Consola de Sistema (Diagnóstico en Vivo)</h2>
+      <div id="sysLogContainer">
+        <div class="sys-info">[Sistema] Consola inicializada. Esperando iniciar motor de red...</div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -61,8 +70,19 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi4iuMkqdQ5GrY2ODzkjDYumosOJUhJHzD3fGS_PMW1K9RNv5YXKbIPbMrfaud-qiGyA/exec';
 
     window.onload = () => {
+      logSys('Página cargada. Iniciando conexión con Apps Script.', 'info');
       startFetching(SCRIPT_URL);
     };
+
+    function logSys(msg, type = 'info') {
+      const container = document.getElementById('sysLogContainer');
+      const div = document.createElement('div');
+      const time = new Date().toISOString().split('T')[1].split('.')[0]; // HH:MM:SS
+      div.className = `sys-${type}`;
+      div.textContent = `[${time}] ${msg}`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
 
     function startFetching(url) {
       if (fetchInterval) clearInterval(fetchInterval);
@@ -74,16 +94,32 @@
     }
 
     async function fetchLogs(url) {
+      logSys('📡 GET -> Enviando petición al servidor Google...', 'info');
       try {
+        const startTime = Date.now();
         const response = await fetch(url, { redirect: 'follow' });
+        const latency = Date.now() - startTime;
+        
+        if (!response.ok) {
+           logSys(`❌ Error HTTP: ${response.status} ${response.statusText}`, 'error');
+           throw new Error(`HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
+        logSys(`✅ RX <- Respuesta 200 OK (${latency}ms). Estado Server: ${data.status || 'OK'}. Hora Server: ${data.serverTime || '-'}`, 'rx');
+        
+        if (data.error) {
+           logSys(`⚠️ Error interno en Apps Script: ${data.error}`, 'error');
+        } else {
+           logSys(`📊 Datos parseados: ${data.logs ? data.logs.length : 0} registros obtenidos correctamente.`, 'info');
+        }
         
         document.getElementById('connectionStatus').textContent = 'Conectado (En Vivo)';
         document.getElementById('connectionStatus').className = 'status-badge status-connected';
         
         updateUI(data.logs || []);
       } catch (error) {
-        console.error("Error obteniendo logs:", error);
+        logSys(`❌ Error de red / CORS: ${error.message}`, 'error');
         document.getElementById('connectionStatus').textContent = 'Error de Conexión';
         document.getElementById('connectionStatus').className = 'status-badge status-disconnected';
       }
@@ -102,7 +138,6 @@
       tbody.innerHTML = '';
       const devices = new Set();
       
-      // Mostrar los más recientes primero
       logs.reverse().forEach(log => {
         if(!log.deviceId) return;
         devices.add(log.deviceId);
@@ -110,16 +145,16 @@
         const tr = document.createElement('tr');
         const eventType = String(log.event).toUpperCase();
         
-        // Identificar tipo de evento para aplicar CSS
         let eventClass = '';
         if (eventType.includes('INICIO') || eventType.includes('START')) eventClass = 'event-INICIO';
         if (eventType.includes('CIERRE') || eventType.includes('CLOSE')) eventClass = 'event-CIERRE';
         if (eventType.includes('ERROR') || eventType.includes('CRASH')) eventClass = 'event-ERROR';
 
-        const date = new Date(log.timestamp).toLocaleString();
+        let dateStr = log.timestamp;
+        try { dateStr = new Date(log.timestamp).toLocaleString(); } catch(e){}
         
         tr.innerHTML = `
-          <td>${date}</td>
+          <td>${dateStr}</td>
           <td>${log.deviceId}</td>
           <td>${log.model || '-'} / ${log.os || '-'}</td>
           <td class="${eventClass}">${eventType}</td>
@@ -128,7 +163,6 @@
         tbody.appendChild(tr);
       });
 
-      // Actualizar dispositivos únicos
       deviceList.innerHTML = '';
       devices.forEach(device => {
         const li = document.createElement('li');
