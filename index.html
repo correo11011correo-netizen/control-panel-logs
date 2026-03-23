@@ -31,12 +31,6 @@
 <body>
   <h1>🛰️ Panel de Control - App Logs (En Vivo)</h1>
   
-  <div class="config-panel">
-    <label for="scriptUrl"><strong>URL Apps Script:</strong></label>
-    <input type="text" id="scriptUrl" placeholder="Pega aquí la URL de tu Web App de Google Apps Script...">
-    <button onclick="saveUrl()">Conectar</button>
-  </div>
-
   <div class="container">
     <div class="card devices-list">
       <h2>📱 Dispositivos Instalados</h2>
@@ -64,25 +58,11 @@
 
   <script>
     let fetchInterval;
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi4iuMkqdQ5GrY2ODzkjDYumosOJUhJHzD3fGS_PMW1K9RNv5YXKbIPbMrfaud-qiGyA/exec';
 
-    // Recuperar URL guardada al cargar
     window.onload = () => {
-      const savedUrl = localStorage.getItem('appsScriptUrl');
-      if (savedUrl) {
-        document.getElementById('scriptUrl').value = savedUrl;
-        startFetching(savedUrl);
-      }
+      startFetching(SCRIPT_URL);
     };
-
-    function saveUrl() {
-      const url = document.getElementById('scriptUrl').value.trim();
-      if (url) {
-        localStorage.setItem('appsScriptUrl', url);
-        startFetching(url);
-      } else {
-        alert("Por favor ingresa una URL válida.");
-      }
-    }
 
     function startFetching(url) {
       if (fetchInterval) clearInterval(fetchInterval);
