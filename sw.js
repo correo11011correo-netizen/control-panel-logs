@@ -32,11 +32,21 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
+  if (event.request.mode === 'navigate' || event.request.method === 'GET') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match(event.request).then(response => {
+          return response || caches.match('./index.html');
+        });
+      })
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then(response => {
+        return response || fetch(event.request);
+      })
+    );
+  }
 });
 
 // --- Background Sync ---
