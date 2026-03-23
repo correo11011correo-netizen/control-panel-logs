@@ -1,11 +1,17 @@
 {
+  "id": "/control-panel-logs/",
   "name": "Monitor Inventario Pro",
   "short_name": "Monitor",
+  "description": "Panel de Control y Monitoreo en Tiempo Real",
+  "lang": "es",
+  "dir": "ltr",
   "start_url": "./index.html",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait",
   "background_color": "#f4f7f6",
   "theme_color": "#34495e",
-  "description": "Panel de Control y Monitoreo en Tiempo Real",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "./icon-192.png",
@@ -27,6 +33,55 @@
       "src": "./logo.svg",
       "sizes": "any",
       "type": "image/svg+xml"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://via.placeholder.com/1280x720.png?text=Monitor+Dashboard+Desktop",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "https://via.placeholder.com/720x1280.png?text=Monitor+Dashboard+Mobile",
+      "sizes": "720x1280",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./index.html",
+      "accept": {
+        "text/plain": [".log", ".txt"],
+        "application/json": [".json"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+monitor",
+      "url": "./index.html?link=%s"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "scope_extensions": [
+    {
+      "origin": "*.github.io"
     }
   ]
 }
