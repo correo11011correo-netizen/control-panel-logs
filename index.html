@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#34495e">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./logo.svg">
+  <link rel="apple-touch-icon" href="./icon-192.png">
   <title>Panel de Control - Dispositivos y Logs</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; }
@@ -254,6 +258,14 @@
         `;
         
         container.appendChild(card);
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => console.log('ServiceWorker registrado:', registration.scope))
+          .catch(error => console.log('ServiceWorker falló:', error));
       });
     }
   </script>
