@@ -72,6 +72,16 @@
     <div id="devicesGrid" class="devices-grid">
       <div style="grid-column: 1/-1; text-align:center; padding:100px; color:#475569; font-weight:bold;">ESTABLECIENDO ENLACE CON SATÉLITE...</div>
     </div>
+    
+    <div class="system-logs" style="margin-top: 40px; background: #000; padding: 20px; border-radius: 15px; border: 1px solid var(--border);">
+      <h2 style="margin: 0; color: #818cf8; font-size: 14px; display:flex; justify-content:space-between;">
+        > TERMINAL DE RED GLOBAL
+        <span id="lastSyncTime" style="color:var(--text-muted); font-size:10px; font-weight:normal;">Esperando sync...</span>
+      </h2>
+      <div id="sysLogContainer" style="height: 200px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 15px;">
+        <div style="color: #a3e635; margin-bottom: 4px;">[Sistema] Iniciando monitorización en vivo...</div>
+      </div>
+    </div>
   </div>
 
   <div id="statusBanner">
@@ -82,15 +92,41 @@
   <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_PC4v24holQF45lKU3RmxGV2lNYDuyAV4u5vmDmg/exec';
     let expanded = new Set();
+    let lastLogCount = 0; // Para detectar nuevos eventos en la terminal
+
+    function logTerminal(msg, color = '#a3e635') {
+      const container = document.getElementById('sysLogContainer');
+      const time = new Date().toLocaleTimeString(); 
+      container.innerHTML += `<div style="color: ${color}; margin-bottom: 4px;">[${time}] ${msg}</div>`;
+      container.scrollTop = container.scrollHeight;
+    }
 
     async function loadData() {
       try {
         const res = await fetch(SCRIPT_URL, { redirect: 'follow' });
         const data = await res.json();
-        render(data.logs || []);
+        
+        document.getElementById('lastSyncTime').textContent = `Último sync: ${new Date().toLocaleTimeString()}`;
+        
+        const currentLogs = data.logs || [];
+        render(currentLogs);
+        
+        // Detectar si llegaron logs nuevos
+        if (currentLogs.length > lastLogCount) {
+          const nuevos = currentLogs.length - lastLogCount;
+          logTerminal(`Paquete de red recibido: ${nuevos} evento(s) nuevo(s) detectado(s).`, '#38bdf8');
+          // Mostrar el último log global en la consola
+          const lastGlobal = currentLogs[currentLogs.length - 1];
+          logTerminal(`--> [${lastGlobal.deviceId.substring(0,6)}] ${lastGlobal.event}: ${lastGlobal.message}`, '#cbd5e1');
+        } else if (currentLogs.length < lastLogCount) {
+          logTerminal(`Sincronización: La base de datos fue limpiada.`, '#fca5a5');
+        }
+        lastLogCount = currentLogs.length;
+
         document.getElementById('statusBanner').style.background = '#6366f1';
         document.getElementById('statusBanner').innerHTML = '<div class="status-dot pulse"></div> LINK ACTIVE';
       } catch (e) {
+        logTerminal(`ERROR DE RED: No se pudo contactar al servidor.`, '#ef4444');
         document.getElementById('statusBanner').style.background = '#ef4444';
         document.getElementById('statusBanner').innerHTML = 'LINK DISCONNECTED';
       }
