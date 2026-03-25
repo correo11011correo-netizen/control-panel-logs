@@ -25,14 +25,16 @@ function doPost(e) {
       event: data.event || 'Log',
       message: data.message || '',
       os: data.os || '',
-      model: data.model || ''
+      model: data.model || '',
+      ip: data.ip || 'Desconocida',
+      usuario: data.usuario || 'Anónimo'
     };
     
     logs.push(newLog);
     
-    // Limitar la cantidad para no saturar la memoria
-    if (logs.length > MAX_LOGS) {
-      logs = logs.slice(logs.length - MAX_LOGS);
+    // Limitar la cantidad para no saturar la memoria (Aumentado a 300)
+    if (logs.length > 300) {
+      logs = logs.slice(logs.length - 300);
     }
     
     // Guardar en memoria interna
@@ -55,13 +57,23 @@ function doPost(e) {
 
 function doGet(e) {
   try {
-    // Si mandan un parámetro ?clear=true, borramos la memoria
+    const props = PropertiesService.getScriptProperties();
+
+    // Si mandan un parámetro ?clear=true, borramos la memoria entera
     if (e.parameter.clear === 'true') {
-      PropertiesService.getScriptProperties().deleteProperty('LOGS');
+      props.deleteProperty('LOGS');
       return ContentService.createTextOutput(JSON.stringify({ status: 'Memoria borrada' })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    const props = PropertiesService.getScriptProperties();
+    // Si mandan un parámetro ?deleteDevice=DEVICE_ID, borramos solo ese dispositivo
+    if (e.parameter.deleteDevice) {
+      const targetId = e.parameter.deleteDevice;
+      let logs = JSON.parse(props.getProperty('LOGS') || '[]');
+      const filteredLogs = logs.filter(l => l.deviceId !== targetId);
+      props.setProperty('LOGS', JSON.stringify(filteredLogs));
+      return ContentService.createTextOutput(JSON.stringify({ status: `Dispositivo ${targetId} eliminado` })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     let logs = [];
     const logsStr = props.getProperty('LOGS');
     if (logsStr) {
