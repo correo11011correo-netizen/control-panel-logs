@@ -36,7 +36,8 @@
 
     .terminal { background: #000; border: 1px solid var(--border); border-radius: 12px; padding: 15px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; }
     .t-msg { margin-bottom: 4px; color: #a3e635; }
-    .t-err { color: var(--error); }
+    .t-err { color: var(--error); font-weight: bold; }
+    .t-warn { color: #f59e0b; }
   </style>
 </head>
 <body>
@@ -53,36 +54,59 @@
 
     <div id="grid" class="grid"></div>
 
-    <h2 style="font-size:12px; color:var(--accent); margin-bottom:10px;">> LIVE NETWORK TERMINAL</h2>
-    <div id="term" class="terminal"><div class="t-msg">[Sistema] Iniciando enlace...</div></div>
+    <h2 style="font-size:12px; color:var(--accent); margin-bottom:10px;">> RAW NETWORK TERMINAL</h2>
+    <div id="term" class="terminal"><div class="t-msg">[SYS] Terminal Iniciada</div></div>
   </div>
 
   <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_PC4v24holQF45lKU3RmxGV2lNYDuyAV4u5vmDmg/exec';
+    const BASE_URL = 'https://script.google.com/macros/s/AKfycby_PC4v24holQF45lKU3RmxGV2lNYDuyAV4u5vmDmg/exec';
     
-    function log(m, err=false) {
+    // Intentaremos acceder directamente. Si falla el CORS, usaremos un proxy transparente.
+    const CORS_PROXY = 'https://corsproxy.io/?';
+    let useProxy = false;
+
+    function log(m, type = 'msg') {
       const t = document.getElementById('term');
       const time = new Date().toLocaleTimeString();
-      t.innerHTML += `<div class="${err?'t-err':'t-msg'}">[${time}] ${m}</div>`;
+      t.innerHTML += `<div class="t-${type}">[${time}] ${m}</div>`;
       t.scrollTop = t.scrollHeight;
     }
 
     async function sync() {
-      log('Sincronizando con Google Apps Script...');
+      const targetUrl = useProxy ? CORS_PROXY + encodeURIComponent(BASE_URL) : BASE_URL;
+      log(`FETCH -> ${targetUrl}`);
+      
       try {
-        const res = await fetch(SCRIPT_URL, { redirect: 'follow' });
+        const reqStartTime = Date.now();
+        const res = await fetch(targetUrl, { 
+          method: 'GET',
+          // Omitimos mode:'cors' para que el proxy funcione naturalmente si se activa
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        log(`FETCH_OK -> HTTP ${res.status} en ${Date.now() - reqStartTime}ms`);
+        
         if (!res.ok) {
-           const errText = await res.text();
-           throw new Error(`HTTP ${res.status}: ${errText.substring(0, 100)}...`);
+          const errRaw = await res.text();
+          throw new Error(`HTTP_${res.status}: ${errRaw}`);
         }
+        
         const data = await res.json();
+        log(`JSON_PARSED -> ${data.logs ? data.logs.length : 0} logs procesados.`);
         render(data.logs || []);
-        log(`Sync exitoso: ${data.logs?.length || 0} eventos procesados.`);
+        
       } catch (e) {
-        log(`!!! ERROR CRUDO DETECTADO !!!`, true);
-        log(`MENSAJE: ${e.message}`, true);
-        log(`DETALLES: ${JSON.stringify(e, Object.getOwnPropertyNames(e))}`, true);
-        log(`Sugerencia: Si es error de CORS, revisa que el Google Script tenga acceso público.`, true);
+        log(`ERR_FETCH -> ${e.message}`, 'err');
+        
+        if (e.message.includes('NetworkError') || e.message.includes('Failed to fetch')) {
+          if (!useProxy) {
+             log(`CORS_BLOCKED -> Cambiando a Proxy de Respaldo...`, 'warn');
+             useProxy = true;
+             setTimeout(sync, 1000); // Reintento con proxy
+          } else {
+             log(`FATAL -> Fallo total de red incluso con proxy.`, 'err');
+          }
+        }
       }
     }
 
@@ -107,14 +131,14 @@
           <div class="card-h">
             <div>
               <div class="loc">${last.usuario.split('(')[1]?.replace(')','') || 'Local'}</div>
-              <div class="user"><div class="dot ${isOnline?'':'off'}"></div>${last.usuario.split('(')[0]}</div>
+              <div class="user"><div class="dot ${isOnline?'':'off'}"></div>${last.usuario.split('(')[0] || 'Desconocido'}</div>
             </div>
             <div style="font-size:10px; color:var(--text-muted)">${id.substring(0,8)}</div>
           </div>
           <div style="padding:0 20px 20px">
             <div class="meta">
-              <div class="m-box"><span class="m-lbl">IP</span><span class="m-val">${last.ip}</span></div>
-              <div class="m-box"><span class="m-lbl">VER</span><span class="m-val">${last.version}</span></div>
+              <div class="m-box"><span class="m-lbl">IP</span><span class="m-val">${last.ip || '---'}</span></div>
+              <div class="m-box"><span class="m-lbl">VER</span><span class="m-val">${last.version || '---'}</span></div>
             </div>
           </div>
           <div class="actions">
@@ -127,12 +151,18 @@
 
     async function del(id) {
       if(!confirm("¿Borrar nodo?")) return;
-      await fetch(`${SCRIPT_URL}?deleteDevice=${id}`, { redirect: 'follow' });
-      sync();
+      const targetUrl = useProxy ? CORS_PROXY + encodeURIComponent(`${BASE_URL}?deleteDevice=${id}`) : `${BASE_URL}?deleteDevice=${id}`;
+      log(`DELETE -> Nodo: ${id}`);
+      try {
+        await fetch(targetUrl);
+        sync();
+      } catch(e) {
+        log(`ERR_DELETE -> ${e.message}`, 'err');
+      }
     }
 
     setInterval(sync, 10000);
-    sync();
+    setTimeout(sync, 500);
   </script>
 </body>
 </html>
