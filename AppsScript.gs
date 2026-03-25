@@ -1,96 +1,66 @@
 // ==========================================
-// BACKEND: GOOGLE APPS SCRIPT (VERSIÓN SIN GOOGLE SHEETS)
+// BACKEND: GOOGLE APPS SCRIPT - MASTER MONITOR v16
 // ==========================================
-// Esta versión utiliza la memoria interna del Script (PropertiesService)
-// para evitar problemas de permisos, CORS o pantallas de autorización.
-
-const MAX_LOGS = 100; // Guardaremos los últimos 100 eventos en memoria
 
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     const props = PropertiesService.getScriptProperties();
-    
-    // Obtener logs actuales
-    let logs = [];
-    const logsStr = props.getProperty('LOGS');
-    if (logsStr) {
-      logs = JSON.parse(logsStr);
-    }
-    
-    // Agregar el nuevo log
+    let logs = JSON.parse(props.getProperty('LOGS') || '[]');
+
     const newLog = {
       timestamp: new Date().toISOString(),
       deviceId: data.deviceId || 'Desconocido',
-      event: data.event || 'Log',
+      event: data.event || 'LOG',
       message: data.message || '',
       os: data.os || '',
       model: data.model || '',
-      ip: data.ip || 'Desconocida',
-      usuario: data.usuario || 'Anónimo'
+      ip: data.ip || '0.0.0.0',
+      usuario: data.usuario || 'Anónimo',
+      version: data.version || 'v1.0.0'
     };
     
     logs.push(newLog);
-    
-    // Limitar la cantidad para no saturar la memoria (Aumentado a 300)
-    if (logs.length > 300) {
-      logs = logs.slice(logs.length - 300);
-    }
-    
-    // Guardar en memoria interna
+    if (logs.length > 500) logs = logs.slice(-500);
     props.setProperty('LOGS', JSON.stringify(logs));
     
-    return ContentService.createTextOutput(JSON.stringify({ 
-      status: 'success', 
-      serverTime: new Date().toISOString(),
-      receivedEvent: data.event
-    })).setMimeType(ContentService.MimeType.JSON);
-    
+    return createJsonResponse({ status: 'success', event: data.event });
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ 
-      status: 'error', 
-      message: error.toString(),
-      serverTime: new Date().toISOString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    return createJsonResponse({ status: 'error', detail: error.toString() });
   }
 }
 
 function doGet(e) {
   try {
     const props = PropertiesService.getScriptProperties();
+    const action = e.parameter.action;
 
-    // Si mandan un parámetro ?clear=true, borramos la memoria entera
-    if (e.parameter.clear === 'true') {
-      props.deleteProperty('LOGS');
-      return ContentService.createTextOutput(JSON.stringify({ status: 'Memoria borrada' })).setMimeType(ContentService.MimeType.JSON);
+    if (action === 'ping') {
+      return createJsonResponse({ status: 'pong', message: 'Servidor operativo', time: new Date().toISOString() });
     }
 
-    // Si mandan un parámetro ?deleteDevice=DEVICE_ID, borramos solo ese dispositivo
+    if (e.parameter.clear === 'true') {
+      props.deleteProperty('LOGS');
+      return createJsonResponse({ status: 'cleared' });
+    }
+
     if (e.parameter.deleteDevice) {
       const targetId = e.parameter.deleteDevice;
       let logs = JSON.parse(props.getProperty('LOGS') || '[]');
-      const filteredLogs = logs.filter(l => l.deviceId !== targetId);
-      props.setProperty('LOGS', JSON.stringify(filteredLogs));
-      return ContentService.createTextOutput(JSON.stringify({ status: `Dispositivo ${targetId} eliminado` })).setMimeType(ContentService.MimeType.JSON);
+      const filtered = logs.filter(l => l.deviceId !== targetId);
+      props.setProperty('LOGS', JSON.stringify(filtered));
+      return createJsonResponse({ status: 'deleted', target: targetId });
     }
 
-    let logs = [];
-    const logsStr = props.getProperty('LOGS');
-    if (logsStr) {
-      logs = JSON.parse(logsStr);
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({ 
-      logs: logs,
-      status: 'OK',
-      serverTime: new Date().toISOString(),
-      rowsProcessed: logs.length
-    })).setMimeType(ContentService.MimeType.JSON);
+    let logs = JSON.parse(props.getProperty('LOGS') || '[]');
+    return createJsonResponse({ logs: logs, status: 'OK' });
     
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ 
-      error: error.toString(),
-      serverTime: new Date().toISOString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    return createJsonResponse({ status: 'error', detail: error.toString() });
   }
+}
+
+function createJsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
