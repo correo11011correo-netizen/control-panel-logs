@@ -3,138 +3,128 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#34495e">
+  <meta name="theme-color" content="#1e293b">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/svg+xml" href="./logo.svg">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <title>Panel de Control - Dispositivos y Logs</title>
+  <title>StockPro - Telemetría y Monitor</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f7f6; }
-    h1 { color: #2c3e50; text-align: center; }
-    .container { display: flex; flex-direction: column; gap: 20px; }
-    .status-container { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; }
-    .status-disconnected { background-color: #e74c3c; color: white; }
-    .status-connected { background-color: #2ecc71; color: white; }
-    .device-card { background: white; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; border-left: 5px solid #3498db; }
-    .device-card.has-error { border-left-color: #e74c3c; }
-    .device-header { padding: 15px 20px; background: #f8f9fa; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-    .device-header:hover { background: #e9ecef; }
-    .device-title { font-weight: bold; font-size: 1.1em; color: #2c3e50; display: flex; align-items: center; gap: 10px; }
-    .error-badge { background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
-    .device-meta { font-size: 0.9em; color: #7f8c8d; }
-    .device-logs { padding: 0; display: none; }
+    :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --accent: #6366f1; --success: #10b981; --error: #ef4444; --warn: #f59e0b; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 20px; background-color: var(--bg); color: var(--text); }
+    h1 { color: #818cf8; text-align: center; margin-bottom: 30px; letter-spacing: 1px; font-weight: 900; }
+    
+    .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    
+    /* PANEL DE ESTADO */
+    .status-container { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #334155; }
+    .status-badge { padding: 6px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+    .status-disconnected { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--error); }
+    .status-connected { background-color: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid var(--success); }
+    .btn-action { padding: 8px 15px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: opacity 0.2s; }
+    .btn-action:hover { opacity: 0.8; }
+    .btn-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--error); color: #fca5a5; }
+
+    /* TARJETAS DE DISPOSITIVO */
+    .device-card { background: var(--card); border-radius: 15px; margin-bottom: 15px; overflow: hidden; border: 1px solid #334155; transition: transform 0.2s; }
+    .device-header { padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; }
+    .device-header:hover { background: rgba(255,255,255,0.02); }
+    
+    .device-info-main { display: flex; flex-direction: column; gap: 8px; }
+    .device-title { font-weight: 900; font-size: 1.2em; color: #fff; display: flex; align-items: center; gap: 10px; }
+    .badge-online { background: var(--success); width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+    .badge-offline { background: #64748b; width: 10px; height: 10px; border-radius: 50%; }
+    
+    .device-meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px; }
+    .meta-item { display: flex; flex-direction: column; }
+    .meta-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
+    .meta-value { font-size: 13px; color: #cbd5e1; }
+    
+    /* ÁREA DE LOGS */
+    .device-logs { padding: 0 20px 20px 20px; display: none; }
     .device-logs.open { display: block; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 20px; border-top: 1px solid #eee; text-align: left; font-size: 0.95em; }
-    th { background-color: #f1f3f5; color: #495057; }
-    .event-INICIO { color: #27ae60; font-weight: bold; }
-    .event-CIERRE { color: #f39c12; font-weight: bold; }
-    .event-ERROR { color: #c0392b; font-weight: bold; }
-    .system-logs { min-width: 100%; height: 25vh; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    #sysLogContainer { background:#222; color:#0f0; padding:10px; height:80%; overflow-y:auto; font-family:monospace; font-size:13px; border-radius:5px; margin-top: 10px;}
-    .sys-info { color: #0f0; }
-    .sys-warn { color: #ffbb33; }
-    .sys-error { color: #ff4444; }
-    .sys-rx { color: #33b5e5; }
-    .toggle-icon { font-size: 1.2em; transition: transform 0.3s; }
-    .open .toggle-icon { transform: rotate(180deg); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0 5px; }
+    th, td { padding: 12px 15px; text-align: left; font-size: 13px; }
+    th { color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 10px; border-bottom: 1px solid #334155; }
+    tr { background: rgba(0,0,0,0.2); }
+    td:first-child { border-radius: 8px 0 0 8px; color: #64748b; font-family: monospace; }
+    td:last-child { border-radius: 0 8px 8px 0; }
+    
+    .type-INFO { color: #6ee7b7; font-weight: bold; }
+    .type-WARNING { color: var(--warn); font-weight: bold; }
+    .type-ERROR, .type-CRITICAL { color: #fca5a5; font-weight: bold; }
+    
+    /* CONSOLA INFERIOR */
+    .system-logs { background: #020617; padding: 20px; border-radius: 15px; border: 1px solid #334155; }
+    #sysLogContainer { height: 150px; overflow-y: auto; font-family: monospace; font-size: 12px; margin-top: 10px; }
+    .sys-msg { color: #a3e635; margin-bottom: 4px; }
+    
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
   </style>
 </head>
 <body>
-  <h1>🛰️ Panel de Control - App Logs (En Vivo)</h1>
+  <h1>🛰️ MONITOR DE FLOTA STOCKPRO</h1>
   
   <div class="container">
     <div class="status-container">
       <div>
         <span id="connectionStatus" class="status-badge status-disconnected">Desconectado</span>
-        <span style="margin-left: 15px; font-weight: bold; color: #34495e;">Total Dispositivos: <span id="totalDevices">0</span></span>
+        <span style="margin-left: 15px; font-weight: bold; color: #94a3b8;">Nodos Activos: <span id="totalDevices" style="color:#fff">0</span></span>
       </div>
-      <button onclick="sendTestLog()" style="padding: 8px 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔌 Enviar Ping de Prueba</button>
+      <div style="display:flex; gap:10px;">
+        <button onclick="clearAllLogs()" class="btn-action btn-danger">🗑️ Limpiar Servidor</button>
+        <button onclick="fetchLogs(SCRIPT_URL)" class="btn-action">🔄 Recargar Ahora</button>
+      </div>
     </div>
 
     <div id="devicesContainer">
-      <!-- Las tarjetas de dispositivos se inyectarán aquí -->
+      <div style="text-align:center; padding:50px; color:#64748b;">Esperando conexión con el servidor...</div>
     </div>
     
     <div class="system-logs">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h2 style="margin: 0;">⚙️ Consola de Sistema (Diagnóstico)</h2>
-      </div>
+      <h2 style="margin: 0; color: #818cf8; font-size: 14px;">> TERMINAL DE RED</h2>
       <div id="sysLogContainer">
-        <div class="sys-info">[Sistema] Consola inicializada. Esperando iniciar motor de red...</div>
+        <div class="sys-msg">[Sistema] Iniciando monitorización en vivo...</div>
       </div>
     </div>
   </div>
 
   <script>
     let fetchInterval;
+    // IMPORTANTE: Esta URL debe ser la tuya de Google Script generada después de la implementación
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyi4iuMkqdQ5GrY2ODzkjDYumosOJUhJHzD3fGS_PMW1K9RNv5YXKbIPbMrfaud-qiGyA/exec';
-    let expandedDevices = new Set(); // Para recordar qué tarjetas están abiertas
+    let expandedDevices = new Set(); 
 
     window.onload = () => {
-      logSys('Página cargada. Modo agrupado por dispositivo.', 'info');
-      sendDashboardLog('INICIO', 'Panel abierto en navegador'); 
       startFetching(SCRIPT_URL);
     };
 
+    function logSys(msg) {
+      const container = document.getElementById('sysLogContainer');
+      const time = new Date().toLocaleTimeString(); 
+      container.innerHTML += `<div class="sys-msg">[${time}] ${msg}</div>`;
+      container.scrollTop = container.scrollHeight;
+    }
+
     function toggleDevice(deviceId) {
       const logsDiv = document.getElementById(`logs-${deviceId}`);
-      const header = document.getElementById(`header-${deviceId}`);
       if (logsDiv.classList.contains('open')) {
         logsDiv.classList.remove('open');
-        header.classList.remove('open');
         expandedDevices.delete(deviceId);
       } else {
         logsDiv.classList.add('open');
-        header.classList.add('open');
         expandedDevices.add(deviceId);
       }
-    }
-
-    async function sendDashboardLog(event, message) {
-      logSys(`📤 POST -> Enviando evento '${event}'...`, 'info');
-      try {
-        const response = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            deviceId: 'WEB-DASHBOARD',
-            event: event,
-            message: message,
-            model: navigator.userAgent.substring(0, 30) + '...',
-            os: 'Web Browser'
-          })
-        });
-        const data = await response.json();
-        logSys(`✅ POST Exitoso. Status: ${data.status}`, 'rx');
-        fetchLogs(SCRIPT_URL); 
-      } catch (err) {
-        logSys(`❌ Error en POST: ${err.message}`, 'error');
-      }
-    }
-
-    function sendTestLog() {
-      sendDashboardLog('PING', 'Prueba de conexión manual');
-    }
-
-    function logSys(msg, type = 'info') {
-      const container = document.getElementById('sysLogContainer');
-      const div = document.createElement('div');
-      const time = new Date().toISOString().split('T')[1].split('.')[0]; 
-      div.className = `sys-${type}`;
-      div.textContent = `[${time}] ${msg}`;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
     }
 
     function startFetching(url) {
       if (fetchInterval) clearInterval(fetchInterval);
       document.getElementById('connectionStatus').textContent = 'Conectando...';
       document.getElementById('connectionStatus').className = 'status-badge status-disconnected';
-      
       fetchLogs(url);
-      fetchInterval = setInterval(() => fetchLogs(url), 5000); 
+      fetchInterval = setInterval(() => fetchLogs(url), 8000); // Consulta cada 8 segundos
     }
 
     async function fetchLogs(url) {
@@ -143,129 +133,109 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
-        document.getElementById('connectionStatus').textContent = 'Conectado (En Vivo)';
+        document.getElementById('connectionStatus').textContent = '📡 Servidor En Línea';
         document.getElementById('connectionStatus').className = 'status-badge status-connected';
         
         updateUI(data.logs || []);
+        logSys(`Paquete de red recibido: ${data.logs ? data.logs.length : 0} eventos procesados.`);
       } catch (error) {
         document.getElementById('connectionStatus').textContent = 'Error de Conexión';
         document.getElementById('connectionStatus').className = 'status-badge status-disconnected';
+        logSys(`Error de red: ${error.message}`);
       }
     }
 
+    async function deleteDevice(deviceId) {
+      if(!confirm(`¿Eliminar todo el registro del dispositivo ${deviceId}?`)) return;
+      logSys(`Solicitando borrado del nodo ${deviceId}...`);
+      try {
+        await fetch(`${SCRIPT_URL}?deleteDevice=${deviceId}`, { method: 'GET', redirect: 'follow' });
+        fetchLogs(SCRIPT_URL);
+      } catch (e) { logSys(`Error al borrar: ${e.message}`); }
+    }
+
+    async function clearAllLogs() {
+      if(!confirm(`⚠️ PELIGRO: ¿Borrar la memoria completa del servidor?`)) return;
+      try {
+        await fetch(`${SCRIPT_URL}?clear=true`, { method: 'GET', redirect: 'follow' });
+        fetchLogs(SCRIPT_URL);
+      } catch (e) {}
+    }
+
     function updateUI(logs) {
-      const container = document.getElementById('devicesContainer');
+      const grouped = {};
       
-      if (!Array.isArray(logs) || logs.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 40px; background: white; border-radius: 8px;">No hay eventos registrados aún.</div>';
-        document.getElementById('totalDevices').textContent = '0';
-        return;
-      }
-      
-      // Agrupar logs por deviceId
-      const groupedLogs = {};
       logs.forEach(log => {
-        if(!log.deviceId) return;
-        if(!groupedLogs[log.deviceId]) {
-          groupedLogs[log.deviceId] = {
-            logs: [],
-            errorCount: 0,
-            lastSeen: 0,
-            os: log.os || 'Desconocido',
-            model: log.model || 'Desconocido'
-          };
-        }
-        
-        // Agregar al inicio para tener los más recientes primero dentro del dispositivo
-        groupedLogs[log.deviceId].logs.unshift(log);
-        
-        const eventType = String(log.event).toUpperCase();
-        if (eventType.includes('ERROR') || eventType.includes('CRASH')) {
-          groupedLogs[log.deviceId].errorCount++;
-        }
-        
-        const logTime = new Date(log.timestamp).getTime();
-        if (logTime > groupedLogs[log.deviceId].lastSeen) {
-          groupedLogs[log.deviceId].lastSeen = logTime;
-          groupedLogs[log.deviceId].os = log.os || groupedLogs[log.deviceId].os;
-          groupedLogs[log.deviceId].model = log.model || groupedLogs[log.deviceId].model;
-        }
+        if (!grouped[log.deviceId]) grouped[log.deviceId] = [];
+        grouped[log.deviceId].push(log);
       });
 
-      // Ordenar dispositivos por última actividad (más reciente arriba)
-      const sortedDevices = Object.keys(groupedLogs).sort((a, b) => groupedLogs[b].lastSeen - groupedLogs[a].lastSeen);
-      
-      document.getElementById('totalDevices').textContent = sortedDevices.length;
+      const container = document.getElementById('devicesContainer');
       container.innerHTML = '';
       
-      sortedDevices.forEach(deviceId => {
-        const deviceData = groupedLogs[deviceId];
-        const lastSeenDate = new Date(deviceData.lastSeen).toLocaleString();
-        const hasError = deviceData.errorCount > 0;
-        const isOpen = expandedDevices.has(deviceId);
+      const deviceIds = Object.keys(grouped);
+      document.getElementById('totalDevices').textContent = deviceIds.length;
+
+      if (deviceIds.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:50px; color:#64748b;">No hay eventos registrados en el servidor.</div>';
+        return;
+      }
+
+      deviceIds.forEach(deviceId => {
+        const deviceLogs = grouped[deviceId].reverse(); // Más recientes primero
+        const latest = deviceLogs[0];
         
+        // Calcular estado "En Línea" (Si el último evento fue hace menos de 5 minutos)
+        const lastSeen = new Date(latest.timestamp);
+        const diffMinutes = (new Date() - lastSeen) / 1000 / 60;
+        const isOnline = diffMinutes < 5;
+        const statusBadge = isOnline ? '<div class="badge-online" title="En Línea"></div>' : '<div class="badge-offline" title="Desconectado"></div>';
+        const timeAgo = isOnline ? 'Ahora' : `Hace ${Math.floor(diffMinutes)} min`;
+
         const card = document.createElement('div');
-        card.className = `device-card ${hasError ? 'has-error' : ''}`;
+        card.className = `device-card`;
         
-        let logsHtml = '';
-        deviceData.logs.forEach(log => {
-          const eventType = String(log.event).toUpperCase();
-          let eventClass = '';
-          if (eventType.includes('INICIO') || eventType.includes('START')) eventClass = 'event-INICIO';
-          if (eventType.includes('CIERRE') || eventType.includes('CLOSE')) eventClass = 'event-CIERRE';
-          if (eventType.includes('ERROR') || eventType.includes('CRASH')) eventClass = 'event-ERROR';
-          
-          let dateStr = log.timestamp;
-          try { dateStr = new Date(log.timestamp).toLocaleString(); } catch(e){}
-
-          logsHtml += `
-            <tr>
-              <td style="width: 20%;">${dateStr}</td>
-              <td class="${eventClass}" style="width: 15%;">${eventType}</td>
-              <td>${log.message || '-'}</td>
-            </tr>
-          `;
-        });
-
         card.innerHTML = `
-          <div class="device-header ${isOpen ? 'open' : ''}" id="header-${deviceId}" onclick="toggleDevice('${deviceId}')">
-            <div class="device-title">
-              📱 ${deviceId}
-              ${hasError ? `<span class="error-badge">${deviceData.errorCount} Error(es)</span>` : ''}
-            </div>
-            <div style="display: flex; align-items: center; gap: 20px;">
-              <div class="device-meta">
-                <strong>Modelo/OS:</strong> ${deviceData.model} / ${deviceData.os} <br>
-                <strong>Último evento:</strong> ${lastSeenDate}
+          <div class="device-header" id="header-${deviceId}" onclick="toggleDevice('${deviceId}')">
+            <div class="device-info-main">
+              <div class="device-title">
+                ${statusBadge}
+                ${latest.usuario || 'Usuario Anónimo'}
               </div>
-              <span class="toggle-icon">▼</span>
+              <div class="device-meta-grid">
+                <div class="meta-item"><span class="meta-label">ID Dispositivo</span><span class="meta-value">${deviceId}</span></div>
+                <div class="meta-item"><span class="meta-label">IP Pública</span><span class="meta-value">${latest.ip || '---'}</span></div>
+                <div class="meta-item"><span class="meta-label">Modelo</span><span class="meta-value">${latest.model || 'Genérico'}</span></div>
+                <div class="meta-item"><span class="meta-label">Última Conexión</span><span class="meta-value">${timeAgo}</span></div>
+              </div>
             </div>
+            <button onclick="event.stopPropagation(); deleteDevice('${deviceId}')" class="btn-action btn-danger" style="padding: 5px 10px; font-size:11px;">Eliminar</button>
           </div>
-          <div class="device-logs ${isOpen ? 'open' : ''}" id="logs-${deviceId}">
+          <div class="device-logs ${expandedDevices.has(deviceId) ? 'open' : ''}" id="logs-${deviceId}">
             <table>
-              <thead>
-                <tr>
-                  <th>Fecha y Hora</th>
-                  <th>Evento</th>
-                  <th>Mensaje</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Hora</th><th>Tipo</th><th>Evento</th><th>Detalle Técnico</th></tr></thead>
               <tbody>
-                ${logsHtml}
+                ${deviceLogs.map(log => {
+                  const time = new Date(log.timestamp).toLocaleTimeString();
+                  // Extraer nivel del evento (ej: INFO_UPDATE_FOUND -> Tipo: INFO, Evento: UPDATE_FOUND)
+                  const parts = log.event.split('_');
+                  const type = parts[0];
+                  const action = parts.slice(1).join('_');
+                  
+                  return `
+                    <tr>
+                      <td>${time}</td>
+                      <td class="type-${type}">${type}</td>
+                      <td style="color:#fff; font-weight:bold;">${action || log.event}</td>
+                      <td style="color:#cbd5e1;">${log.message}</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
         `;
-        
         container.appendChild(card);
-      });
-    }
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(registration => console.log('ServiceWorker registrado:', registration.scope))
-          .catch(error => console.log('ServiceWorker falló:', error));
       });
     }
   </script>
