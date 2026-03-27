@@ -40,6 +40,11 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.TEXT);
     }
 
+    if (e.parameter.deleteAll === 'true') {
+      props.setProperty('LOGS', '[]');
+      return createJsonResponse({ status: 'all_deleted' });
+    }
+
     if (e.parameter.deleteDevice) {
       const targetId = e.parameter.deleteDevice;
       let logs = JSON.parse(props.getProperty('LOGS') || '[]');
@@ -49,6 +54,8 @@ function doGet(e) {
     }
 
     let logs = JSON.parse(props.getProperty('LOGS') || '[]');
+    // Limit to 100 logs for better history
+    if (logs.length > 100) logs = logs.slice(-100);
     const result = { logs: logs, status: 'OK' };
 
     // SOPORTE JSONP PARA EL MONITOR WEB
