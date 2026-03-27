@@ -270,6 +270,16 @@
       }
     }
 
+    function getAndroidVersion(apiLevel) {
+      const level = parseInt(apiLevel);
+      if(isNaN(level)) return apiLevel; // Si no es un número (ej: "iOS 16"), lo devuelve tal cual
+      const versions = {
+        35: "15", 34: "14", 33: "13", 32: "12L", 31: "12", 30: "11", 
+        29: "10", 28: "9 Pie", 27: "8.1 Oreo", 26: "8.0 Oreo"
+      };
+      return versions[level] ? `Android ${versions[level]} (API ${level})` : `Android API ${level}`;
+    }
+
     function render(logs) {
       const grouped = {};
       
@@ -295,6 +305,11 @@
         const last = dLogs[0];
         const lastTime = new Date(last.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
+        // Extraemos variables seguras
+        const meta = last.metadata || {};
+        const realOs = last.os ? (last.os.toLowerCase().includes('android') ? getAndroidVersion(last.os.replace(/[^0-9]/g, '')) : last.os) : 'Desconocido';
+        const emptyStyle = "color: #ef4444; font-weight: bold; font-size: 10px; font-style: italic;";
+        
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
@@ -310,28 +325,37 @@
             ${dLogs.some(l => l.event === 'CRITICAL_HARD_RESET') ? '<span style="background:var(--error); color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold; letter-spacing:0.5px;">RESET</span>' : ''}
           </div>
           
-          ${last.metadata && (last.metadata.email || last.metadata.phone) ? `
-          <div style="margin-bottom:10px; font-size:12px; color:var(--text-dim); display:flex; gap:10px;">
-            ${last.metadata.email ? `<span>✉️ ${last.metadata.email}</span>` : ''}
-            ${last.metadata.phone ? `<span>📱 ${last.metadata.phone}</span>` : ''}
-          </div>` : ''}
+          <div style="margin-bottom:10px; font-size:12px; color:var(--text-dim); display:flex; flex-wrap: wrap; gap:10px;">
+            <span title="Email del Cliente">✉️ ${meta.email ? `<span style="color:#fff;">${meta.email}</span>` : `<span style="${emptyStyle}">APP SIN ACTUALIZAR</span>`}</span>
+            <span title="Teléfono del Cliente">📱 ${meta.phone ? `<span style="color:#fff;">${meta.phone}</span>` : `<span style="${emptyStyle}">APP SIN ACTUALIZAR</span>`}</span>
+          </div>
 
           <div class="os-info" style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:15px; font-size:12px;">
             <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
-              <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">ID Dispositivo</div>
-              <div class="device-id" style="color:#fff; margin-top:2px;">${id}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
               <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">Sistema OS</div>
-              <div style="color:#fff; margin-top:2px;">${last.os || 'Desconocido'}</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
-              <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">Versión App</div>
-              <div style="color:#fff; margin-top:2px; font-weight:bold; color:var(--accent);">v${last.version || '1.0.0'}</div>
+              <div style="color:#fff; margin-top:2px;">${realOs}</div>
             </div>
             <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
               <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">Dirección IP</div>
               <div style="color:#fff; margin-top:2px; font-family:'JetBrains Mono', monospace;">${last.ip || '0.0.0.0'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
+              <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">Batería</div>
+              <div style="margin-top:2px;">${meta.bateria ? `<span style="color:#fff;">${meta.bateria}</span>` : `<span style="${emptyStyle}">Sin datos</span>`}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
+              <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">Versión App</div>
+              <div style="margin-top:2px; font-weight:bold; color:var(--accent);">v${last.version || '1.0.0'}</div>
+            </div>
+            <div style="grid-column: span 2; background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px; display:flex; justify-content:space-between;">
+              <div>
+                <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">ID Dispositivo</div>
+                <div class="device-id" style="color:#fff; margin-top:2px;">${id}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">Ubicación</div>
+                <div style="margin-top:2px;">${meta.ubicacion ? `<span style="color:#fff;">${meta.ubicacion}</span>` : `<span style="${emptyStyle}">Sin GPS</span>`}</div>
+              </div>
             </div>
           </div>
           
