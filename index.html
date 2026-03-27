@@ -47,7 +47,7 @@
         <span style="margin-left: 15px; font-weight: bold; color: #34495e;">Total Dispositivos: <span id="totalDevices">0</span></span>
       </div>
       <div>
-        <button onclick="sendSimulatedAppLog()" style="padding: 8px 15px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;">📱 Simular App v1.0.9</button>
+        <button onclick="sendSimulatedAppLog()" style="padding: 8px 15px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;">📱 Test Última Versión</button>
         <button onclick="sendTestLog()" style="padding: 8px 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔌 Enviar Ping de Prueba</button>
       </div>
     </div>
@@ -118,18 +118,29 @@
     }
 
     async function sendSimulatedAppLog() {
-      logSys(`📤 POST -> Simulando envío de App v1.0.9...`, 'info');
+      logSys(`🔍 Detectando última versión publicada en GitHub...`, 'info');
       try {
+        // Fetch raw App.js from the repository
+        const appJsRes = await fetch('https://raw.githubusercontent.com/correo11011correo-netizen/inventario-pro/native-rewrite/App.js');
+        const appJsText = await appJsRes.text();
+        
+        // Extract version using regex
+        const versionMatch = appJsText.match(/const APP_VERSION = ["']([^"']+)["']/);
+        const latestVersion = versionMatch ? versionMatch[1] : 'Desconocida';
+        
+        logSys(`📦 Última versión detectada: v${latestVersion}`, 'info');
+        logSys(`📤 POST -> Simulando envío de App v${latestVersion}...`, 'info');
+
         const payload = {
           deviceId: 'SIMULADOR-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
           event: 'INFO_OTA_TEST',
-          message: 'Prueba de telemetría dual exitosa',
-          version: '1.0.9',
-          appVersion: '1.0.9',
-          usuario: 'Test User (Local Test)',
-          nombreUsuario: 'Test User',
-          nombreLocal: 'Local Test',
-          model: 'Simulador Web',
+          message: `Prueba genérica de telemetría dual exitosa (v${latestVersion})`,
+          version: latestVersion,
+          appVersion: latestVersion,
+          usuario: 'Usuario de Prueba',
+          nombreUsuario: 'Tester',
+          nombreLocal: 'Local Virtual',
+          model: 'Simulador Inteligente Web',
           os: 'Web Browser',
           ip: '127.0.0.1',
           timestamp: new Date().toISOString(),
