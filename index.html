@@ -214,9 +214,18 @@
   <div class="container">
     <header>
       <h1>🛰️ STOCKPRO <span>MASTER HUB</span></h1>
-      <div style="display:flex; gap:10px;">
-        <button class="btn" style="background:#334155; padding: 10px 15px; font-size: 13px;" onclick="clearAll()">LIMPIAR TODO</button>
-        <button class="btn" style="padding: 10px 15px; font-size: 13px;" onclick="sync()">RECARGAR</button>
+      
+      <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+        <select id="serverSelect" style="background:#1e293b; color:#fff; border:1px solid var(--border); padding:8px 12px; border-radius:8px; font-size:13px; font-family:'Inter', sans-serif;" onchange="sync()">
+          <option value="https://script.google.com/macros/s/AKfycbweUlhXJzUqqmcehuAkTs1MTJV4JVaYs3Y-UrMD6urtCdjP4SsyefgZAZo0AVFK6YU/exec">🟢 SERVIDOR ORIGINAL (AKfycbwe...)</option>
+          <option value="https://script.google.com/macros/s/AKfycbxOz64ZdcbALY7G1KLHg8YKBy8yEAShqpuzDygLMQDrIPCRGsw9aXapVzStD-Jhgapjjg/exec">🟠 SERVIDOR NUEVO (AKfycbxO...)</option>
+        </select>
+        
+        <div style="display:flex; gap:10px; justify-content: space-between;">
+          <button class="btn" style="background:var(--success); padding: 10px 15px; font-size: 13px; color:#000;" onclick="testServer()">🧪 TEST</button>
+          <button class="btn" style="background:#334155; padding: 10px 15px; font-size: 13px;" onclick="clearAll()">LIMPIAR</button>
+          <button class="btn" style="padding: 10px 15px; font-size: 13px;" onclick="sync()">RECARGAR</button>
+        </div>
       </div>
     </header>
 
@@ -228,13 +237,16 @@
         LIVE NETWORK LOGS
       </div>
       <div id="term" class="terminal">
-        <div class="t-msg"><span class="t-time">00:00:00</span> [SYS] Terminal de monitoreo v22 activa.</div>
+        <div class="t-msg"><span class="t-time">00:00:00</span> [SYS] Terminal de monitoreo activa.</div>
       </div>
     </div>
   </div>
 
   <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxOz64ZdcbALY7G1KLHg8YKBy8yEAShqpuzDygLMQDrIPCRGsw9aXapVzStD-Jhgapjjg/exec';
+    function getScriptUrl() {
+      const select = document.getElementById('serverSelect');
+      return select ? select.value : 'https://script.google.com/macros/s/AKfycbweUlhXJzUqqmcehuAkTs1MTJV4JVaYs3Y-UrMD6urtCdjP4SsyefgZAZo0AVFK6YU/exec';
+    }
     
     function log(m, err=false) {
       const t = document.getElementById('term');
@@ -245,13 +257,15 @@
 
     async function sync() {
       try {
+        const url = getScriptUrl();
+        log(`Conectando a ${url.substring(0,50)}...`);
         const callbackName = 'cb_' + Date.now();
         const script = document.createElement('script');
-        script.src = `${SCRIPT_URL}?callback=${callbackName}`;
+        script.src = `${url}?callback=${callbackName}`;
         
         window[callbackName] = (data) => {
           if(data.status === 'OK') {
-            log(`ACTUALIZADO: ${data.logs?.length || 0} eventos.`);
+            log(`ACTUALIZADO: ${data.logs?.length || 0} eventos recibidos.`);
             render(data.logs || []);
           } else {
             log('ERROR EN RESPUESTA: ' + JSON.stringify(data), true);
@@ -261,12 +275,46 @@
         };
 
         script.onerror = () => {
-          log('ERROR DE RED: No se pudo conectar con el servidor.', true);
+          log('ERROR DE RED: No se pudo conectar con el servidor. Verifica la URL.', true);
+          render([]); // Limpiar grilla si falla
         };
 
         document.body.appendChild(script);
       } catch (e) {
         log(`ERROR CRÍTICO: ${e.message}`, true);
+      }
+    }
+
+    async function testServer() {
+      const url = getScriptUrl();
+      log(`Enviando PING de prueba al servidor seleccionado...`);
+      try {
+        const payload = {
+          deviceId: 'TEST-DEV-001',
+          event: 'PING_TEST',
+          message: 'Prueba de conexión desde el Panel Web',
+          model: 'Panel Web Tester',
+          os: 'Navegador Web',
+          usuario: 'Administrador',
+          version: 'v23-Panel',
+          metadata: { bateria: '100%', ubicacion: 'Panel Central' }
+        };
+
+        const respuesta = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await respuesta.json();
+        if(data.status === 'success') {
+           log('✅ PING EXITOSO: El servidor procesó la prueba correctamente.');
+           sync(); // Recargar para ver la tarjeta de prueba
+        } else {
+           log(`❌ FALLO EN PRUEBA: El servidor devolvió: ${JSON.stringify(data)}`, true);
+        }
+      } catch(e) {
+        log(`❌ FALLO DE RED EN PRUEBA: ${e.message}. Verifica permisos de Google.`, true);
       }
     }
 
@@ -382,8 +430,9 @@
       if(!confirm('¿Seguro que quieres borrar TODOS los logs?')) return;
       log('Borrando base de datos completa...');
       try {
+        const url = getScriptUrl();
         const script = document.createElement('script');
-        script.src = `${SCRIPT_URL}?deleteAll=true&callback=cb_all`;
+        script.src = `${url}?deleteAll=true&callback=cb_all`;
         window.cb_all = (res) => {
           log('Base de datos borrada.');
           sync();
@@ -400,8 +449,9 @@
       if(!confirm(`¿Eliminar logs del dispositivo ${id}?`)) return;
       log(`Eliminando dispositivo ${id}...`);
       try {
+        const url = getScriptUrl();
         const script = document.createElement('script');
-        script.src = `${SCRIPT_URL}?deleteDevice=${id}&callback=cb_delete`;
+        script.src = `${url}?deleteDevice=${id}&callback=cb_delete`;
         window.cb_delete = (res) => {
           log(`Dispositivo eliminado.`);
           sync();
@@ -420,10 +470,11 @@
       
       log(`Encolando mensaje para ${id}...`);
       try {
+        const url = getScriptUrl();
         const script = document.createElement('script');
         // Codificamos el mensaje para que sea seguro enviarlo por URL
         const encodedMsg = encodeURIComponent(msg);
-        script.src = `${SCRIPT_URL}?sendMessageTo=${id}&msgText=${encodedMsg}&callback=cb_msg`;
+        script.src = `${url}?sendMessageTo=${id}&msgText=${encodedMsg}&callback=cb_msg`;
         window.cb_msg = (res) => {
           log(`Mensaje encolado exitosamente para ${id}.`);
           delete window.cb_msg;
