@@ -46,7 +46,10 @@
         <span id="connectionStatus" class="status-badge status-disconnected">Desconectado</span>
         <span style="margin-left: 15px; font-weight: bold; color: #34495e;">Total Dispositivos: <span id="totalDevices">0</span></span>
       </div>
-      <button onclick="sendTestLog()" style="padding: 8px 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔌 Enviar Ping de Prueba</button>
+      <div>
+        <button onclick="sendSimulatedAppLog()" style="padding: 8px 15px; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px;">📱 Simular App v1.0.9</button>
+        <button onclick="sendTestLog()" style="padding: 8px 15px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🔌 Enviar Ping de Prueba</button>
+      </div>
     </div>
 
     <div id="devicesContainer">
@@ -112,6 +115,37 @@
 
     function sendTestLog() {
       sendDashboardLog('PING', 'Prueba de conexión manual');
+    }
+
+    async function sendSimulatedAppLog() {
+      logSys(`📤 POST -> Simulando envío de App v1.0.9...`, 'info');
+      try {
+        const payload = {
+          deviceId: 'SIMULADOR-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          event: 'INFO_OTA_TEST',
+          message: 'Prueba de telemetría dual exitosa',
+          version: '1.0.9',
+          appVersion: '1.0.9',
+          usuario: 'Test User (Local Test)',
+          nombreUsuario: 'Test User',
+          nombreLocal: 'Local Test',
+          model: 'Simulador Web',
+          os: 'Web Browser',
+          ip: '127.0.0.1',
+          timestamp: new Date().toISOString(),
+          developerContact: "delpianoadrian@gmail.com"
+        };
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        logSys(`✅ Simulación Exitosa. Status: ${data.status}`, 'rx');
+        fetchLogs(SCRIPT_URL);
+      } catch (err) {
+        logSys(`❌ Error en simulación: ${err.message}`, 'error');
+      }
     }
 
     function logSys(msg, type = 'info') {
