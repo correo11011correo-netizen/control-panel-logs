@@ -300,12 +300,22 @@
         card.innerHTML = `
           <div class="card-header">
             <div class="user-badge">${last.usuario || 'Anónimo'}</div>
-            <button onclick="deleteDevice('${id}')" style="background:none; border:none; color:var(--error); cursor:pointer; font-size:18px; padding:0 5px;">&times;</button>
+            <div>
+              <button onclick="sendMessage('${id}')" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:16px; padding:0 10px;" title="Enviar mensaje">✉️</button>
+              <button onclick="deleteDevice('${id}')" style="background:none; border:none; color:var(--error); cursor:pointer; font-size:18px; padding:0 5px;" title="Eliminar dispositivo">&times;</button>
+            </div>
           </div>
           <div class="model-name" style="display:flex; align-items:center; gap:8px;">
             ${last.model || 'Dispositivo'}
             ${dLogs.some(l => l.event === 'CRITICAL_HARD_RESET') ? '<span style="background:var(--error); color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:bold; letter-spacing:0.5px;">RESET</span>' : ''}
           </div>
+          
+          ${last.metadata && (last.metadata.email || last.metadata.phone) ? `
+          <div style="margin-bottom:10px; font-size:12px; color:var(--text-dim); display:flex; gap:10px;">
+            ${last.metadata.email ? `<span>✉️ ${last.metadata.email}</span>` : ''}
+            ${last.metadata.phone ? `<span>📱 ${last.metadata.phone}</span>` : ''}
+          </div>` : ''}
+
           <div class="os-info" style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:15px; font-size:12px;">
             <div style="background:rgba(255,255,255,0.05); padding:6px 10px; border-radius:8px;">
               <div style="color:var(--text-dim); font-size:10px; text-transform:uppercase;">ID Dispositivo</div>
@@ -377,6 +387,27 @@
         document.body.appendChild(script);
       } catch (e) {
         log(`Error al eliminar: ${e.message}`, true);
+      }
+    }
+
+    async function sendMessage(id) {
+      const msg = prompt('Escribe el mensaje de soporte para este dispositivo (Se enviará la próxima vez que el cliente abra la app):');
+      if(!msg) return;
+      
+      log(`Encolando mensaje para ${id}...`);
+      try {
+        const script = document.createElement('script');
+        // Codificamos el mensaje para que sea seguro enviarlo por URL
+        const encodedMsg = encodeURIComponent(msg);
+        script.src = `${SCRIPT_URL}?sendMessageTo=${id}&msgText=${encodedMsg}&callback=cb_msg`;
+        window.cb_msg = (res) => {
+          log(`Mensaje encolado exitosamente para ${id}.`);
+          delete window.cb_msg;
+          document.body.removeChild(script);
+        };
+        document.body.appendChild(script);
+      } catch (e) {
+        log(`Error al encolar mensaje: ${e.message}`, true);
       }
     }
 
