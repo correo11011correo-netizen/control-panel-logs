@@ -1,67 +1,78 @@
-// ==============================================================
-// 🛠️ EJEMPLO: CÓMO CONECTAR TU APP AL NUEVO PANEL DE CONTROL v23
-// ==============================================================
+// ===================================================================
+// 🚀 NUEVA VERSIÓN v24: SELECTOR DINÁMICO DE URL (NO DEPENDE DE URL FIJA)
+// ===================================================================
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const MONITOR_URL = 'https://script.google.com/macros/s/AKfycbweUlhXJzUqqmcehuAkTs1MTJV4JVaYs3Y-UrMD6urtCdjP4SsyefgZAZo0AVFK6YU/exec';
+// 📡 ESTA ES TU "URL MAESTRA" EN GITHUB (Nunca cambia)
+// Es el archivo que acabamos de crear en tu repositorio.
+const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/correo11011correo-netizen/control-panel-logs/main/remote_config.json';
+
+// URL de Emergencia (En caso de que falle GitHub, para que no se pierdan los datos)
+const BACKUP_URL = 'https://script.google.com/macros/s/AKfycbweUlhXJzUqqmcehuAkTs1MTJV4JVaYs3Y-UrMD6urtCdjP4SsyefgZAZo0AVFK6YU/exec';
 
 /**
- * Registra un evento en el servidor central.
- * Ahora soporta enviar TODOS los datos que necesites dinámicamente.
+ * Función que busca la URL de monitoreo más reciente desde GitHub.
+ * Se puede llamar al iniciar la App o antes de cada envío importante.
+ */
+const obtenerUrlMonitoreo = async () => {
+  try {
+    const respuesta = await fetch(REMOTE_CONFIG_URL);
+    const config = await respuesta.json();
+    
+    if (config.active_monitor_url) {
+      await AsyncStorage.setItem('@active_monitor_url', config.active_monitor_url);
+      return config.active_monitor_url;
+    }
+  } catch (e) {
+    console.log("No se pudo obtener config remota, usando cache o backup.");
+  }
+  
+  // Si falla, intentamos usar la última que guardamos o la de backup
+  const guardada = await AsyncStorage.getItem('@active_monitor_url');
+  return guardada || BACKUP_URL;
+};
+
+/**
+ * Registra un evento de forma dinámica.
  */
 export const registrarEvento = async (tipo, mensaje, datosExtra = {}) => {
   try {
+    // 1. Buscamos la URL activa (Dinámica)
+    const monitorUrl = await obtenerUrlMonitoreo();
+    
     let deviceId = await AsyncStorage.getItem('@device_id');
     if (!deviceId) {
       deviceId = `DEV-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
       await AsyncStorage.setItem('@device_id', deviceId);
     }
 
-    // 1. Preparamos los datos básicos
     const payload = {
       deviceId: deviceId,
       event: tipo,
       message: mensaje,
-      model: Constants.deviceName || 'Dispositivo Desconocido',
+      model: Constants.deviceName || 'Desconocido',
       os: `${Platform.OS} ${Platform.Version}`,
       version: Constants.expoConfig?.version || '1.0.0',
-      
-      // 2. 🟢 AHORA PUEDES ENVIAR CUALQUIER COSA AQUÍ:
-      email: datosExtra.email || await AsyncStorage.getItem('@user_email'),
-      phone: datosExtra.phone || await AsyncStorage.getItem('@user_phone'),
       usuario: datosExtra.nombre || await AsyncStorage.getItem('@user_name') || 'Anónimo',
-      
-      // 3. Y también puedes mandar un objeto entero con más metadata:
-      metadata: {
-        bateria: datosExtra.bateria || '100%',
-        ubicacion: datosExtra.ubicacion || 'Desconocida',
-        memoriaLibre: datosExtra.memoria || '1GB',
-        // Cualquier otro dato que se te ocurra en el futuro...
-        ...datosExtra.metadata
-      }
+      metadata: { ...datosExtra.metadata }
     };
 
-    // 4. Enviamos al backend
-    const respuesta = await fetch(MONITOR_URL, {
+    // 2. Enviamos a la URL obtenida dinámicamente
+    const respuesta = await fetch(monitorUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Importante para evitar CORS
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
     });
 
     const data = await respuesta.json();
 
-    // 5. 🔵 ¡NUEVO!: LEER MENSAJES DE SOPORTE
-    // Si desde el panel web le enviaste un mensaje a este cliente, llegará aquí.
+    // 3. Leer mensajes de soporte (opcional)
     if (data.pendingMessages && data.pendingMessages.length > 0) {
-      console.log('¡TIENES MENSAJES NUEVOS DEL SOPORTE!');
-      
       data.pendingMessages.forEach(msg => {
-        // Aquí puedes mostrar un Alert o una notificación en tu App
-        // Ej: Alert.alert('Soporte Técnico', msg.text);
-        console.log(`Mensaje [${msg.type}]: ${msg.text}`);
+        console.log(`Mensaje de Soporte: ${msg.text}`);
       });
     }
 
@@ -69,21 +80,3 @@ export const registrarEvento = async (tipo, mensaje, datosExtra = {}) => {
     console.log("Monitor offline", e);
   }
 };
-
-// ==============================================================
-// 📋 EJEMPLOS DE USO EN TU APP
-// ==============================================================
-
-// Ejemplo 1: Log Normal (Como hacías antes)
-// registrarEvento('INICIO', 'La aplicación se abrió');
-
-// Ejemplo 2: Reportar un error con datos de contacto
-// registrarEvento('ERROR', 'Fallo al guardar producto', {
-//   email: 'cliente@gmail.com',
-//   phone: '+54 376 4123456',
-//   nombre: 'Celeste Sosa',
-//   metadata: { 
-//     producto_id: '12345',
-//     pantalla: 'CrearProducto'
-//   }
-// });
